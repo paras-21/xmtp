@@ -1,17 +1,16 @@
 import React, { useState, useContext } from 'react';
 import { Web3Context } from '../contexts/Web3Context';
-import { initializeXmtp, newConversation, sendMessage } from '../services/xmtpService';
+import { newConversation, sendMessage } from '../services/xmtpService';
 
 const Compose = () => {
   const [recipient, setRecipient] = useState('');
   const [content, setContent] = useState('');
-  const { signer } = useContext(Web3Context);
+  const { xmtpClient } = useContext(Web3Context);
 
   const handleSend = async () => {
-    if (signer && recipient && content) {
+    if (xmtpClient && recipient && content) {
       try {
-        const xmtp = await initializeXmtp(signer);
-        const conversation = await newConversation(xmtp, recipient);
+        const conversation = await newConversation(xmtpClient, recipient);
         await sendMessage(conversation, content);
         alert('Message sent successfully!');
         setRecipient('');
@@ -24,8 +23,8 @@ const Compose = () => {
   };
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow">
-      <h2 className="text-xl font-bold mb-4">Compose Message</h2>
+    <div className="container mx-auto p-4">
+      <h2 className="text-2xl font-bold mb-4">Compose Message</h2>
       <input
         type="text"
         value={recipient}
@@ -39,7 +38,7 @@ const Compose = () => {
         placeholder="Message content"
         className="w-full p-2 mb-2 border rounded"
         rows="4"
-      ></textarea>
+      />
       <button
         onClick={handleSend}
         className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
