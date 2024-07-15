@@ -2,6 +2,8 @@ import React, { createContext, useState, useCallback, useEffect } from 'react';
 import { ethers } from 'ethers';
 import Web3Modal from 'web3modal';
 import { initializeXmtp, wipeKeys } from '../services/xmtpService';
+import { createPublicClient, http } from 'viem';
+import { mainnet } from 'viem/chains';
 
 export const Web3Context = createContext();
 
@@ -13,6 +15,11 @@ const web3Modal = new Web3Modal({
   network: "mainnet", // optional
   cacheProvider: true, // This is important to cache the provider
   providerOptions // required
+});
+
+const publicClient = createPublicClient({
+  chain: mainnet,
+  transport: http()
 });
 
 export const Web3Provider = ({ children }) => {
@@ -74,8 +81,46 @@ export const Web3Provider = ({ children }) => {
     }
   }, [connectWallet]);
 
+  const isSpam = useCallback(async (senderAddress) => {
+    try {
+      // Check if the sender has any ETH balance
+      const balance = await publicClient.getBalance({ address: senderAddress });
+      
+      // Check if the sender has any transactions
+      const transactionCount = await publicClient.getTransactionCount({ address: senderAddress });
+      
+      // If the sender has no balance and no transactions, consider it potential spam
+      if (balance === 0n && transactionCount === 0) {
+        return 'requests';
+      }
+      
+      // Check if there's any transaction history between the user and sender
+      const userTransactions = await publicClient.getTransactionCount({ address: account });
+      const senderTransactions = await publicClient.getTransactionCount({ address: senderAddress });
+      
+      if (userTransactions > 0 && senderTransactions > 0) {
+        return 'primary';
+      }
+      
+      // If none of the above conditions are met, categorize as general
+      return 'general';
+    } catch (error) {
+      console.error("Error categorizing address:", error);
+      return 'requests'; // Default to requests if there's an error
+    }
+  }, [account]);
+
   return (
-    <Web3Context.Provider value={{ provider, signer, account, chainId, xmtpClient, connectWallet, disconnect }}>
+    <Web3Context.Provider value={{ 
+      provider, 
+      signer, 
+      account, 
+      chainId, 
+      xmtpClient, 
+      connectWallet, 
+      disconnect,
+      isSpam 
+    }}>
       {children}
     </Web3Context.Provider>
   );

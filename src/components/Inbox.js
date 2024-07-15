@@ -2,27 +2,43 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Web3Context } from '../contexts/Web3Context';
 import { getConversations, getMessages, sendMessage } from '../services/xmtpService';
 import Message from './Message';
+import { isSpam } from '../services/spamFilter';
 
 const Inbox = () => {
-  const [conversations, setConversations] = useState([]);
+  const [conversations, setConversations] = useState({
+    primary: [],
+    general: [],
+    requests: []
+  });
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const { xmtpClient } = useContext(Web3Context);
+  const [currentInbox, setCurrentInbox] = useState('primary');
+  const { xmtpClient, account } = useContext(Web3Context);
 
   useEffect(() => {
     const fetchConversations = async () => {
-      if (xmtpClient) {
+      if (xmtpClient && account) {
         try {
           const fetchedConversations = await getConversations(xmtpClient);
-          setConversations(fetchedConversations);
+          const categorizedConversations = await categorizeConversations(fetchedConversations);
+          setConversations(categorizedConversations);
         } catch (error) {
           console.error('Error fetching conversations:', error);
         }
       }
     };
     fetchConversations();
-  }, [xmtpClient]);
+  }, [xmtpClient, account]);
+
+  const categorizeConversations = async (convos) => {
+    const categorized = { primary: [], general: [], requests: [] };
+    for (const conversation of convos) {
+      const category = await isSpam(account, conversation.peerAddress);
+      categorized[category].push(conversation);
+    }
+    return categorized;
+  };
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -51,13 +67,24 @@ const Inbox = () => {
   return (
     <div className="container mx-auto p-4">
       <h2 className="text-2xl font-bold mb-4">Inbox</h2>
+      <div className="flex mb-4">
+        {['primary', 'general', 'requests'].map((inbox) => (
+          <button
+            key={inbox}
+            className={`mr-2 px-4 py-2 rounded ${currentInbox === inbox ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+            onClick={() => setCurrentInbox(inbox)}
+          >
+            {inbox.charAt(0).toUpperCase() + inbox.slice(1)}
+          </button>
+        ))}
+      </div>
       <div className="flex">
         <div className="w-1/3 pr-4">
           <h3 className="text-xl font-semibold mb-2">Conversations</h3>
-          {conversations.length === 0 ? (
-            <p>No conversations yet.</p>
+          {conversations[currentInbox].length === 0 ? (
+            <p>No conversations in this inbox.</p>
           ) : (
-            conversations.map((conversation, index) => (
+            conversations[currentInbox].map((conversation, index) => (
               <div
                 key={index}
                 className={`cursor-pointer p-4 hover:bg-gray-100 border-b ${
