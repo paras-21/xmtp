@@ -83,3 +83,40 @@ export const newConversation = async (xmtp, address) => {
     throw error;
   }
 };
+
+// New functions for consent management
+export const blockAddress = async (xmtp, address) => {
+  try {
+    await xmtp.contacts.deny([address]);
+  } catch (error) {
+    console.error('Error blocking address:', error);
+    throw error;
+  }
+};
+
+export const unblockAddress = async (xmtp, address) => {
+  try {
+    await xmtp.contacts.allow([address]);
+  } catch (error) {
+    console.error('Error unblocking address:', error);
+    throw error;
+  }
+};
+
+export const isAddressBlocked = async (xmtp, address) => {
+  try {
+    return await xmtp.contacts.isDenied(address);
+  } catch (error) {
+    console.error('Error checking if address is blocked:', error);
+    throw error;
+  }
+};
+
+export const refreshConsentList = async (xmtp) => {
+  try {
+    await xmtp.contacts.refreshConsentList();
+  } catch (error) {
+    console.error('Error refreshing consent list:', error);
+    throw error;
+  }
+};
