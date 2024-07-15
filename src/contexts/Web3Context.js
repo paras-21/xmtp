@@ -1,7 +1,7 @@
 import React, { createContext, useState, useCallback, useEffect } from 'react';
 import { ethers } from 'ethers';
 import Web3Modal from 'web3modal';
-import { clearXmtpKeys, initializeXmtp } from '../services/xmtpService';
+import { initializeXmtp, wipeKeys } from '../services/xmtpService';
 
 export const Web3Context = createContext();
 
@@ -52,19 +52,21 @@ export const Web3Provider = ({ children }) => {
       });
 
     } catch (error) {
-      console.error("Failed to connect wallet:", error);
+      console.error("Failed to connect wallet or initialize XMTP:", error);
     }
   }, []);
 
   const disconnect = useCallback(async () => {
     web3Modal.clearCachedProvider();
-    clearXmtpKeys();
+    if (account) {
+      wipeKeys(account);
+    }
     setProvider(null);
     setSigner(null);
     setAccount(null);
     setChainId(null);
     setXmtpClient(null);
-  }, []);
+  }, [account]);
 
   useEffect(() => {
     if (web3Modal.cachedProvider) {

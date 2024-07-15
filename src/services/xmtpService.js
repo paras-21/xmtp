@@ -1,43 +1,85 @@
 import { Client } from '@xmtp/xmtp-js';
 
-const KEYS_STORAGE_KEY = 'xmtp-keys';
+const ENCODING = "binary";
 
-export const initializeXmtp = async (signer, forceNewKeys = false) => {
-  if (!forceNewKeys) {
-    const storedKeys = localStorage.getItem(KEYS_STORAGE_KEY);
-    if (storedKeys) {
-      try {
-        const keys = JSON.parse(storedKeys);
-        return await Client.create(null, { env: 'production', privateKeyOverride: keys });
-      } catch (error) {
-        console.error('Error parsing stored keys:', error);
-        localStorage.removeItem(KEYS_STORAGE_KEY);
-      }
-    }
-  }
-  
-  // If there are no stored keys, parsing failed, or forceNewKeys is true, create a new client
-  const xmtp = await Client.create(signer, { env: 'production' });
-  localStorage.setItem(KEYS_STORAGE_KEY, JSON.stringify(xmtp.keys));
-  return xmtp;
+export const getEnv = () => {
+  return "production";
 };
 
-export const clearXmtpKeys = () => {
-  localStorage.removeItem(KEYS_STORAGE_KEY);
+export const buildLocalStorageKey = (walletAddress) =>
+  walletAddress ? `xmtp:${getEnv()}:keys:${walletAddress}` : "";
+
+export const loadKeys = (walletAddress) => {
+  const val = localStorage.getItem(buildLocalStorageKey(walletAddress));
+  return val ? Buffer.from(val, ENCODING) : null;
+};
+
+export const storeKeys = (walletAddress, keys) => {
+  localStorage.setItem(
+    buildLocalStorageKey(walletAddress),
+    Buffer.from(keys).toString(ENCODING),
+  );
+};
+
+export const wipeKeys = (walletAddress) => {
+  localStorage.removeItem(buildLocalStorageKey(walletAddress));
+};
+
+export const initializeXmtp = async (signer, forceNewKeys = false) => {
+  try {
+    const address = await signer.getAddress();
+    let keys = loadKeys(address);
+
+    if (!keys || forceNewKeys) {
+      const options = {
+        env: getEnv(),
+        skipContactPublishing: true,
+        persistConversations: false,
+      };
+      keys = await Client.getKeys(signer, options);
+      storeKeys(address, keys);
+    }
+
+    const client = await Client.create(null, { env: getEnv(), privateKeyOverride: keys });
+    return client;
+  } catch (error) {
+    console.error('Error initializing XMTP client:', error);
+    throw error;
+  }
 };
 
 export const sendMessage = async (conversation, content) => {
-  await conversation.send(content);
+  try {
+    await conversation.send(content);
+  } catch (error) {
+    console.error('Error sending message:', error);
+    throw error;
+  }
 };
 
 export const getConversations = async (xmtp) => {
-  return await xmtp.conversations.list();
+  try {
+    return await xmtp.conversations.list();
+  } catch (error) {
+    console.error('Error getting conversations:', error);
+    throw error;
+  }
 };
 
 export const getMessages = async (conversation) => {
-  return await conversation.messages();
+  try {
+    return await conversation.messages();
+  } catch (error) {
+    console.error('Error getting messages:', error);
+    throw error;
+  }
 };
 
 export const newConversation = async (xmtp, address) => {
-  return await xmtp.conversations.newConversation(address);
+  try {
+    return await xmtp.conversations.newConversation(address);
+  } catch (error) {
+    console.error('Error creating new conversation:', error);
+    throw error;
+  }
 };
