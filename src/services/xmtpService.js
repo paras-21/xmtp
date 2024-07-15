@@ -120,3 +120,20 @@ export const refreshConsentList = async (xmtp) => {
     throw error;
   }
 };
+export const isAllowed = async (xmtp, address) => {
+  try {
+    return await xmtp.contacts.isAllowed(address);
+  } catch (error) {
+    console.error('Error checking if address is allowed:', error);
+    throw error;
+  }
+};
+
+export const allowAddress = async (xmtp, address) => {
+  try {
+    await xmtp.contacts.allow([address]);
+  } catch (error) {
+    console.error('Error allowing address:', error);
+    throw error;
+  }
+};

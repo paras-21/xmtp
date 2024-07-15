@@ -1,12 +1,21 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Web3Context } from '../contexts/Web3Context';
-import { getConversations, getMessages, sendMessage, blockAddress, unblockAddress, isAddressBlocked, refreshConsentList } from '../services/xmtpService';
+import { 
+  getConversations, 
+  getMessages, 
+  sendMessage, 
+  blockAddress, 
+  unblockAddress, 
+  isAddressBlocked, 
+  isAllowed,
+  allowAddress,
+  refreshConsentList 
+} from '../services/xmtpService';
 import Message from './Message';
 
 const Inbox = () => {
   const [conversations, setConversations] = useState({
     primary: [],
-    general: [],
     requests: [],
     blocked: []
   });
@@ -33,15 +42,18 @@ const Inbox = () => {
   }, [xmtpClient, account]);
 
   const categorizeConversations = async (convos) => {
-    const categorized = { primary: [], general: [], requests: [], blocked: [] };
+    const categorized = { primary: [], requests: [], blocked: [] };
     for (const conversation of convos) {
       const isBlocked = await isAddressBlocked(xmtpClient, conversation.peerAddress);
       if (isBlocked) {
         categorized.blocked.push(conversation);
       } else {
-        // Here you can implement your own logic to categorize conversations
-        // For now, we'll put them all in 'primary' if not blocked
-        categorized.primary.push(conversation);
+        const allowed = await isAllowed(xmtpClient, conversation.peerAddress);
+        if (allowed) {
+          categorized.primary.push(conversation);
+        } else {
+          categorized.requests.push(conversation);
+        }
       }
     }
     return categorized;
@@ -93,11 +105,22 @@ const Inbox = () => {
     }
   };
 
+  const handleAllow = async (conversation) => {
+    try {
+      await allowAddress(xmtpClient, conversation.peerAddress);
+      const updatedConversations = await categorizeConversations(await getConversations(xmtpClient));
+      setConversations(updatedConversations);
+    } catch (error) {
+      console.error('Error allowing address:', error);
+      alert('Failed to allow address. Please try again.');
+    }
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h2 className="text-2xl font-bold mb-4">Inbox</h2>
       <div className="flex mb-4">
-        {['primary', 'general', 'requests', 'blocked'].map((inbox) => (
+        {['primary', 'requests', 'blocked'].map((inbox) => (
           <button
             key={inbox}
             className={`mr-2 px-4 py-2 rounded ${currentInbox === inbox ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
@@ -122,6 +145,17 @@ const Inbox = () => {
                 onClick={() => setSelectedConversation(conversation)}
               >
                 <span>{conversation.peerAddress}</span>
+                {currentInbox === 'requests' && (
+                  <button
+                    className="ml-2 px-2 py-1 bg-green-500 text-white rounded"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAllow(conversation);
+                    }}
+                  >
+                    Allow
+                  </button>
+                )}
                 {currentInbox !== 'blocked' ? (
                   <button
                     className="ml-2 px-2 py-1 bg-red-500 text-white rounded"
