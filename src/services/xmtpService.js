@@ -84,7 +84,6 @@ export const newConversation = async (xmtp, address) => {
   }
 };
 
-// New functions for consent management
 export const blockAddress = async (xmtp, address) => {
   try {
     await xmtp.contacts.deny([address]);
@@ -112,14 +111,6 @@ export const isAddressBlocked = async (xmtp, address) => {
   }
 };
 
-export const refreshConsentList = async (xmtp) => {
-  try {
-    await xmtp.contacts.refreshConsentList();
-  } catch (error) {
-    console.error('Error refreshing consent list:', error);
-    throw error;
-  }
-};
 export const isAllowed = async (xmtp, address) => {
   try {
     return await xmtp.contacts.isAllowed(address);
@@ -135,5 +126,21 @@ export const allowAddress = async (xmtp, address) => {
   } catch (error) {
     console.error('Error allowing address:', error);
     throw error;
+  }
+};
+
+export const refreshConsentList = async (xmtp) => {
+  try {
+    await xmtp.contacts.refreshConsentList();
+  } catch (error) {
+    console.error('Error refreshing consent list:', error);
+    throw error;
+  }
+};
+
+export const streamMessages = async (conversation, callback) => {
+  const stream = await conversation.streamMessages();
+  for await (const message of stream) {
+    callback(message);
   }
 };

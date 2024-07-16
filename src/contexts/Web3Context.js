@@ -10,9 +10,9 @@ const providerOptions = {
 };
 
 const web3Modal = new Web3Modal({
-  network: "mainnet", // optional
-  cacheProvider: true, // This is important to cache the provider
-  providerOptions // required
+  network: "mainnet",
+  cacheProvider: true,
+  providerOptions
 });
 
 export const Web3Provider = ({ children }) => {
@@ -35,7 +35,6 @@ export const Web3Provider = ({ children }) => {
       setAccount(address);
       setChainId(network.chainId);
 
-      // Initialize XMTP client
       const client = await initializeXmtp(signer);
       setXmtpClient(client);
 

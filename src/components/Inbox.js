@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Web3Context } from '../contexts/Web3Context';
-import { 
-  getConversations, 
-  getMessages, 
-  sendMessage, 
-  blockAddress, 
-  unblockAddress, 
-  isAddressBlocked, 
+import {
+  getConversations,
+  getMessages,
+  sendMessage,
+  blockAddress,
+  unblockAddress,
+  isAddressBlocked,
   isAllowed,
   allowAddress,
-  refreshConsentList 
+  refreshConsentList,
+  streamMessages,
 } from '../services/xmtpService';
 import Message from './Message';
 
@@ -23,11 +24,13 @@ const Inbox = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [currentInbox, setCurrentInbox] = useState('primary');
+  const [isLoading, setIsLoading] = useState(false);
   const { xmtpClient, account } = useContext(Web3Context);
 
   useEffect(() => {
     const fetchConversations = async () => {
       if (xmtpClient && account) {
+        setIsLoading(true);
         try {
           await refreshConsentList(xmtpClient);
           const fetchedConversations = await getConversations(xmtpClient);
@@ -35,6 +38,8 @@ const Inbox = () => {
           setConversations(categorizedConversations);
         } catch (error) {
           console.error('Error fetching conversations:', error);
+        } finally {
+          setIsLoading(false);
         }
       }
     };
@@ -62,8 +67,15 @@ const Inbox = () => {
   useEffect(() => {
     const fetchMessages = async () => {
       if (selectedConversation) {
-        const fetchedMessages = await getMessages(selectedConversation);
-        setMessages(fetchedMessages);
+        setIsLoading(true);
+        try {
+          const fetchedMessages = await getMessages(selectedConversation);
+          setMessages(fetchedMessages);
+        } catch (error) {
+          console.error('Error fetching messages:', error);
+        } finally {
+          setIsLoading(false);
+        }
       }
     };
     fetchMessages();
@@ -115,6 +127,21 @@ const Inbox = () => {
       alert('Failed to allow address. Please try again.');
     }
   };
+
+  useEffect(() => {
+    if (selectedConversation) {
+      const handleNewMessage = (message) => {
+        setMessages(prevMessages => [...prevMessages, message]);
+      };
+      
+      streamMessages(selectedConversation, handleNewMessage);
+      
+      return () => {
+        // Clean up the stream when the component unmounts or the conversation changes
+        // Note: XMTP doesn't provide a built-in way to stop the stream, so you might need to implement your own solution
+      };
+    }
+  }, [selectedConversation]);
 
   return (
     <div className="container mx-auto p-4">
@@ -184,13 +211,11 @@ const Inbox = () => {
         <div className="w-2/3">
           <h3 className="text-xl font-semibold mb-2">Messages</h3>
           {selectedConversation ? (
-            messages.length === 0 ? (
-              <p>No messages in this conversation.</p>
-            ) : (
-              messages.map((message, index) => (
+            <>
+              {messages.map((message, index) => (
                 <Message key={index} message={message} />
-              ))
-            )
+              ))}
+            </>
           ) : (
             <p>Select a conversation to view messages.</p>
           )}
@@ -213,6 +238,7 @@ const Inbox = () => {
           )}
         </div>
       </div>
+      {isLoading && <div className="mt-4 text-center">Loading...</div>}
     </div>
   );
 };
